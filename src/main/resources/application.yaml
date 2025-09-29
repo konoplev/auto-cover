@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: auto-cover-app
+
+model:
+  provider: OPENAI # Options: OPENAI, ANTHROPIC, GOOGLE, OLLAMA
+  name: gpt-4.1-nano # Model name specific to the provider
+  temperature: 0.7
+  max:
+    tokens: 2048 # Reduced to avoid hitting rate limits
+  timeout:
+    seconds: 60 # Increased timeout for retry scenarios
+  api:
+    key: ${API_KEY:} # Set via environment variable or override in application.yaml
+  rate-limit:
+    max-retries: 10 # Number of retry attempts for rate limit errors
+    initial-delay-seconds: 3 # Initial delay before first retry
+    backoff-multiplier: 1.5 # Exponential backoff multiplier (more conservative)
+    jitter: true # Add random jitter to prevent thundering herd
+
+agent:
+  coverage:
+    test-command: null
+    test-result-location: null
+  memory:
+    max:
+      messages: 20
+  logging:
+    enabled: true
+
+logging:
+  level:
+    me.konoplev.autocover: DEBUG
+    dev.langchain4j: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
