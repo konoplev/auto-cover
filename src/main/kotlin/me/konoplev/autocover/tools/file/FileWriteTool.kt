@@ -2,6 +2,7 @@ package me.konoplev.autocover.tools.file
 
 import dev.langchain4j.agent.tool.P
 import dev.langchain4j.agent.tool.Tool
+import kotlin.io.path.absolutePathString
 import me.konoplev.autocover.services.FileSystemTransactionManager
 import me.konoplev.autocover.tools.FileSystemTool
 import org.slf4j.LoggerFactory
@@ -31,7 +32,15 @@ class FileWriteTool(
 
             // Track in transaction (manager will handle whether a transaction is active)
             if (fileExistedBefore) {
-                transactionManager.trackFileModification(filePath)
+                // Check if this file was created during the transaction
+                if (transactionManager.wasFileCreatedDuringTransaction(filePath)) {
+                    // File was created during transaction, don't create backup
+                    logger.debug("Skipping backup for file created during transaction: {}", filePath)
+                } else {
+                    // File was pre-existing, create backup
+                    transactionManager.trackPreExistingFile(filePath)
+                    transactionManager.trackFileModification(filePath)
+                }
             }
 
             val path = Paths.get(filePath)
@@ -40,7 +49,13 @@ class FileWriteTool(
             path.parent?.let { parentPath ->
                 if (!Files.exists(parentPath)) {
                     Files.createDirectories(parentPath)
+                    transactionManager.trackDirectoryCreation(parentPath.absolutePathString())
                     logger.debug("Created parent directories for: {}", filePath)
+                } else {
+                    // Track pre-existing parent directories
+                    if (!transactionManager.isDirectoryPreExisting(parentPath.absolutePathString())) {
+                        transactionManager.trackPreExistingDirectory(parentPath.absolutePathString())
+                    }
                 }
             }
 
@@ -71,8 +86,17 @@ class FileWriteTool(
             logger.debug("Appending to file: {}", filePath)
 
             // Track in transaction if active
-            if (File(filePath).exists()) {
-                transactionManager.trackFileModification(filePath)
+            val file = File(filePath)
+            if (file.exists()) {
+                // Check if this file was created during the transaction
+                if (transactionManager.wasFileCreatedDuringTransaction(filePath)) {
+                    // File was created during transaction, don't create backup
+                    logger.debug("Skipping backup for file created during transaction: {}", filePath)
+                } else {
+                    // File was pre-existing, create backup
+                    transactionManager.trackPreExistingFile(filePath)
+                    transactionManager.trackFileModification(filePath)
+                }
             }
 
             val path = Paths.get(filePath)
@@ -81,7 +105,13 @@ class FileWriteTool(
             path.parent?.let { parentPath ->
                 if (!Files.exists(parentPath)) {
                     Files.createDirectories(parentPath)
+                    transactionManager.trackDirectoryCreation(parentPath.absolutePathString())
                     logger.debug("Created parent directories for: {}", filePath)
+                } else {
+                    // Track pre-existing parent directories
+                    if (!transactionManager.isDirectoryPreExisting(parentPath.absolutePathString())) {
+                        transactionManager.trackPreExistingDirectory(parentPath.absolutePathString())
+                    }
                 }
             }
 

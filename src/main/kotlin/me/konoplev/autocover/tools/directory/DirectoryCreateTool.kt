@@ -25,6 +25,14 @@ class DirectoryCreateTool(
 
             if (Files.exists(path)) {
                 if (Files.isDirectory(path)) {
+                    // Track pre-existing directory
+                    val dirLastModified = File(directoryPath).lastModified()
+                    val transactionStartTime = transactionManager.getTransactionStartTime()
+                    val isPreExisting = transactionStartTime != null && dirLastModified < transactionStartTime
+                    
+                    if (isPreExisting) {
+                        transactionManager.trackPreExistingDirectory(directoryPath)
+                    }
                     return "Directory already exists: $directoryPath"
                 } else {
                     return "Error: A file already exists at path: $directoryPath"
@@ -54,6 +62,14 @@ class DirectoryCreateTool(
 
             if (Files.exists(path)) {
                 if (Files.isDirectory(path)) {
+                    // Track pre-existing directory
+                    val dirLastModified = File(directoryPath).lastModified()
+                    val transactionStartTime = transactionManager.getTransactionStartTime()
+                    val isPreExisting = transactionStartTime != null && dirLastModified < transactionStartTime
+                    
+                    if (isPreExisting) {
+                        transactionManager.trackPreExistingDirectory(directoryPath)
+                    }
                     return "Directory already exists: $directoryPath"
                 } else {
                     return "Error: A file already exists at path: $directoryPath"

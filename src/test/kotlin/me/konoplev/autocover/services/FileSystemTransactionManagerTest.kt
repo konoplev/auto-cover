@@ -365,4 +365,198 @@ class FileSystemTransactionManagerTest {
         assertEquals("readable content", readResult)
         assertTrue(listResult.contains("readable-file.txt"))
     }
+
+    @Test
+    fun `should rollback mixed file operations - existing file modified and new file created`() {
+        // Given: A file that exists before the transaction
+        val existingFile = File(tempDir.toFile(), "existing-file.txt")
+        val originalContent = "original content before transaction"
+        existingFile.writeText(originalContent)
+
+        // Given: Active transaction
+        transactionManager.startTransaction()
+
+        // When: Create a new file during transaction
+        val newFile = File(tempDir.toFile(), "new-file.txt")
+        val newFileContent = "content of new file"
+        fileWriteTool.writeFile(newFile.absolutePath, newFileContent)
+
+        // When: Edit the file that existed before the transaction
+        val modifiedContent = "modified content during transaction"
+        fileWriteTool.writeFile(existingFile.absolutePath, modifiedContent)
+
+        // When: Edit the file created during the transaction
+        val updatedNewFileContent = "updated content of new file"
+        fileWriteTool.writeFile(newFile.absolutePath, updatedNewFileContent)
+
+        // Then: Both files should have the modified content
+        assertEquals(modifiedContent, existingFile.readText())
+        assertEquals(updatedNewFileContent, newFile.readText())
+
+        // When: Rollback transaction
+        transactionManager.rollbackTransaction()
+
+        // Then: The file that existed before should be restored to original content
+        assertEquals(originalContent, existingFile.readText())
+        assertFalse(File(existingFile.absolutePath + ".backup").exists())
+
+        // Then: The file created during the transaction should be removed
+        assertFalse(newFile.exists())
+    }
+
+    @Test
+    fun `should rollback mixed file operations - existing file modified and new file created with a new directory`() {
+        // Given: A file that exists before the transaction
+        val existingFile = File(tempDir.toFile(), "existing-file.txt")
+        val originalContent = "original content before transaction"
+        existingFile.writeText(originalContent)
+
+        // Given: Active transaction
+        transactionManager.startTransaction()
+
+        // When: Create a new file during transaction
+        val newFile = File(tempDir.toFile(), "/new-directory/new-file.txt")
+        val newFileContent = "content of new file"
+        fileWriteTool.writeFile(newFile.absolutePath, newFileContent)
+
+        // When: Edit the file that existed before the transaction
+        val modifiedContent = "modified content during transaction"
+        fileWriteTool.writeFile(existingFile.absolutePath, modifiedContent)
+
+        // When: Edit the file created during the transaction
+        val updatedNewFileContent = "updated content of new file"
+        fileWriteTool.writeFile(newFile.absolutePath, updatedNewFileContent)
+
+        // Then: Both files should have the modified content
+        assertEquals(modifiedContent, existingFile.readText())
+        assertEquals(updatedNewFileContent, newFile.readText())
+
+        // When: Rollback transaction
+        transactionManager.rollbackTransaction()
+
+        // Then: The file that existed before should be restored to original content
+        assertEquals(originalContent, existingFile.readText())
+        assertFalse(File(existingFile.absolutePath + ".backup").exists())
+
+        // Then: The file created during the transaction should be removed
+        assertFalse(newFile.exists())
+    }
+
+    @Test
+    fun `should rollback mixed file operations - existing file modified and new file created in new directory`() {
+        // Given: A file that exists before the transaction
+        val existingFile = File(tempDir.toFile(), "existing-file.txt")
+        val originalContent = "original content before transaction"
+        existingFile.writeText(originalContent)
+
+        // Given: Active transaction
+        transactionManager.startTransaction()
+
+        // When: Create a new directory during transaction
+        val newDirectory = File(tempDir.toFile(), "new-directory")
+        directoryCreateTool.createDirectory(newDirectory.absolutePath)
+
+        // When: Create a new file in the new directory during transaction
+        val newFile = File(newDirectory, "new-file.txt")
+        val newFileContent = "content of new file in new directory"
+        fileWriteTool.writeFile(newFile.absolutePath, newFileContent)
+
+        // When: Edit the file that existed before the transaction
+        val modifiedContent = "modified content during transaction"
+        fileWriteTool.writeFile(existingFile.absolutePath, modifiedContent)
+
+        // When: Edit the file created during the transaction
+        val updatedNewFileContent = "updated content of new file in new directory"
+        fileWriteTool.writeFile(newFile.absolutePath, updatedNewFileContent)
+
+        // Then: All operations should be applied
+        assertTrue(newDirectory.exists())
+        assertTrue(newDirectory.isDirectory())
+        assertEquals(modifiedContent, existingFile.readText())
+        assertEquals(updatedNewFileContent, newFile.readText())
+
+        // When: Rollback transaction
+        transactionManager.rollbackTransaction()
+
+        // Then: The file that existed before should be restored to original content
+        assertEquals(originalContent, existingFile.readText())
+        assertFalse(File(existingFile.absolutePath + ".backup").exists())
+
+        // Then: The new directory and file created during the transaction should be removed
+        assertFalse(newDirectory.exists())
+        assertFalse(newFile.exists())
+    }
+
+    @Test
+    fun `should rollback mixed file operations - existing file modified and new file created and then removed`() {
+        // Given: A file that exists before the transaction
+        val existingFile = File(tempDir.toFile(), "existing-file.txt")
+        val originalContent = "original content before transaction"
+        existingFile.writeText(originalContent)
+
+        // Given: Active transaction
+        transactionManager.startTransaction()
+
+        // When: Create a new file during transaction
+        val newFile = File(tempDir.toFile(), "new-file.txt")
+        val newFileContent = "content of new file"
+        fileWriteTool.writeFile(newFile.absolutePath, newFileContent)
+
+        // When: Edit the file that existed before the transaction
+        val modifiedContent = "modified content during transaction"
+        fileWriteTool.writeFile(existingFile.absolutePath, modifiedContent)
+
+        // When: Remove the file created during the transaction
+        fileWriteTool.deleteFile(newFile.absolutePath)
+
+        // Then: The existing file should have the modified content
+        assertEquals(modifiedContent, existingFile.readText())
+
+        // When: Rollback transaction
+        transactionManager.rollbackTransaction()
+
+        // Then: The file that existed before should be restored to original content
+        assertEquals(originalContent, existingFile.readText())
+        assertFalse(File(existingFile.absolutePath + ".backup").exists())
+
+        // Then: The file created during the transaction should be removed
+        assertFalse(newFile.exists())
+    }
+
+    @Test
+    fun `should rollback mixed file operations - existing file modified and new file created with a new directory and then removed`() {
+        // Given: A file that exists before the transaction
+        val existingFile = File(tempDir.toFile(), "existing-file.txt")
+        val originalContent = "original content before transaction"
+        existingFile.writeText(originalContent)
+
+        // Given: Active transaction
+        transactionManager.startTransaction()
+
+        // When: Create a new file during transaction
+        val newFile = File(tempDir.toFile(), "/new-directory/new-file.txt")
+        val newFileContent = "content of new file"
+        fileWriteTool.writeFile(newFile.absolutePath, newFileContent)
+
+        // When: Edit the file that existed before the transaction
+        val modifiedContent = "modified content during transaction"
+        fileWriteTool.writeFile(existingFile.absolutePath, modifiedContent)
+
+        // When: Remove the file created during the transaction
+        fileWriteTool.deleteFile(newFile.absolutePath)
+
+        // Then: The existing file should have the modified content
+        assertEquals(modifiedContent, existingFile.readText())
+
+        // When: Rollback transaction
+        transactionManager.rollbackTransaction()
+
+        // Then: The file that existed before should be restored to original content
+        assertEquals(originalContent, existingFile.readText())
+        assertFalse(File(existingFile.absolutePath + ".backup").exists())
+
+        // Then: The file created during the transaction should be removed
+        assertFalse(newFile.exists())
+    }
+
 }

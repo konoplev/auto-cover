@@ -13,6 +13,9 @@ data class TransactionState(
     val createdDirectories: MutableList<String> = mutableListOf(),
     val modifiedFiles: MutableList<Pair<String, String>> = mutableListOf(), // original file -> backup file
     val deletedItems: MutableList<Pair<String, String>> = mutableListOf(), // original path -> backup path (.removed)
+    val preExistingFiles: MutableSet<String> = mutableSetOf(), // files that existed before transaction
+    val preExistingDirectories: MutableSet<String> = mutableSetOf(), // directories that existed before transaction
+    val startTimeMillis: Long = System.currentTimeMillis() // timestamp when transaction started
 )
 
 @Component
@@ -86,6 +89,7 @@ class FileSystemTransactionManager : FileSystemTool {
             }
 
             logger.debug("Rolling back the transaction")
+            logger.debug("Modified files to restore: {}", transaction.modifiedFiles)
 
             // Remove all created files and directories (in reverse order)
             transaction.createdFiles.reversed().forEach { filePath ->
@@ -104,11 +108,7 @@ class FileSystemTransactionManager : FileSystemTool {
                 try {
                     val dir = File(dirPath)
                     if (dir.exists() && dir.isDirectory()) {
-                        // Only remove if empty (to avoid removing directories with other content)
-                        if (dir.listFiles()?.isEmpty() == true) {
-                            dir.delete()
-                            logger.debug("Removed created directory: {}", dirPath)
-                        }
+                        dir.delete()
                     }
                 } catch (e: Exception) {
                     logger.warn("Failed to remove created directory: {}", dirPath, e)
@@ -124,6 +124,8 @@ class FileSystemTransactionManager : FileSystemTool {
                         Files.copy(backupFile.toPath(), originalFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
                         backupFile.delete()
                         logger.debug("Restored file from backup: {} -> {}", backupPath, originalPath)
+                    } else {
+                        logger.warn("Backup file does not exist: {}", backupPath)
                     }
                 } catch (e: Exception) {
                     logger.warn("Failed to restore file from backup: {} -> {}", backupPath, originalPath, e)
@@ -171,17 +173,58 @@ class FileSystemTransactionManager : FileSystemTool {
         }
     }
 
+    internal fun trackPreExistingFile(filePath: String) {
+        currentTransaction?.let { transaction ->
+            transaction.preExistingFiles.add(filePath)
+            logger.debug("Tracked pre-existing file: {}", filePath)
+        }
+    }
+
+    internal fun trackPreExistingDirectory(dirPath: String) {
+        currentTransaction?.let { transaction ->
+            transaction.preExistingDirectories.add(dirPath)
+            logger.debug("Tracked pre-existing directory: {}", dirPath)
+        }
+    }
+
+    internal fun isFilePreExisting(filePath: String): Boolean {
+        return currentTransaction?.let { transaction ->
+            transaction.preExistingFiles.contains(filePath)
+        } ?: false
+    }
+
+    internal fun wasFileCreatedDuringTransaction(filePath: String): Boolean {
+        return currentTransaction?.let { transaction ->
+            transaction.createdFiles.contains(filePath)
+        } ?: false
+    }
+
+    internal fun isDirectoryPreExisting(dirPath: String): Boolean {
+        return currentTransaction?.let { transaction ->
+            transaction.preExistingDirectories.contains(dirPath)
+        } ?: false
+    }
+
+    internal fun getTransactionStartTime(): Long? {
+        return currentTransaction?.startTimeMillis
+    }
+
     internal fun trackFileModification(filePath: String) {
         currentTransaction?.let { transaction ->
             val file = File(filePath)
             if (file.exists()) {
-                val backupPath = "$filePath.backup"
-                try {
-                    Files.copy(file.toPath(), Paths.get(backupPath), StandardCopyOption.REPLACE_EXISTING)
-                    transaction.modifiedFiles.add(filePath to backupPath)
-                    logger.debug("Created backup for file modification: {} -> {}", filePath, backupPath)
-                } catch (e: Exception) {
-                    logger.warn("Failed to create backup for: {}", filePath, e)
+                // Only create backup if this file was pre-existing (not created during transaction)
+                if (isFilePreExisting(filePath)) {
+                    val backupPath = "$filePath.backup"
+                    try {
+                        Files.copy(file.toPath(), Paths.get(backupPath), StandardCopyOption.REPLACE_EXISTING)
+                        transaction.modifiedFiles.add(filePath to backupPath)
+                        logger.debug("Created backup for pre-existing file modification: {} -> {}", filePath, backupPath)
+                    } catch (e: Exception) {
+                        logger.warn("Failed to create backup for: {}", filePath, e)
+                    }
+                } else {
+                    logger.debug("Skipping backup for file created during transaction: {}", filePath)
                 }
             }
         }
@@ -191,17 +234,29 @@ class FileSystemTransactionManager : FileSystemTool {
         currentTransaction?.let { transaction ->
             val item = File(itemPath)
             if (item.exists()) {
-                val removedPath = "$itemPath.removed"
-                try {
-                    if (item.isDirectory()) {
-                        copyDirectoryRecursively(item, File(removedPath))
-                    } else {
-                        Files.copy(item.toPath(), Paths.get(removedPath), StandardCopyOption.REPLACE_EXISTING)
+                // Check if this item was created during the transaction
+                val wasCreatedDuringTransaction = transaction.createdFiles.contains(itemPath) || 
+                    transaction.createdDirectories.contains(itemPath)
+                
+                if (wasCreatedDuringTransaction) {
+                    // Item was created during transaction, just remove it from created lists
+                    transaction.createdFiles.remove(itemPath)
+                    transaction.createdDirectories.remove(itemPath)
+                    logger.debug("Removed created item from tracking (no backup needed): {}", itemPath)
+                } else {
+                    // Item existed before transaction, create backup for restoration
+                    val removedPath = "$itemPath.removed"
+                    try {
+                        if (item.isDirectory()) {
+                            copyDirectoryRecursively(item, File(removedPath))
+                        } else {
+                            Files.copy(item.toPath(), Paths.get(removedPath), StandardCopyOption.REPLACE_EXISTING)
+                        }
+                        transaction.deletedItems.add(itemPath to removedPath)
+                        logger.debug("Created .removed backup for deletion: {} -> {}", itemPath, removedPath)
+                    } catch (e: Exception) {
+                        logger.warn("Failed to create .removed backup for: {}", itemPath, e)
                     }
-                    transaction.deletedItems.add(itemPath to removedPath)
-                    logger.debug("Created .removed backup for deletion: {} -> {}", itemPath, removedPath)
-                } catch (e: Exception) {
-                    logger.warn("Failed to create .removed backup for: {}", itemPath, e)
                 }
             }
         }
