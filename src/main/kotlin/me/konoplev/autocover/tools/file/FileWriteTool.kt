@@ -169,6 +169,7 @@ class FileWriteTool(
     /**
      * Process content to handle escape sequences properly.
      * Converts literal escape sequences like \n, \t, etc. to actual characters.
+     * Only processes literal backslash escape sequences, not actual line ending characters.
      */
     private fun processContent(content: String): String {
         logger.debug("Processing content with {} characters", content.length)
@@ -181,7 +182,6 @@ class FileWriteTool(
             .replace("\\\\", "\\")
             // Handle any remaining backslashes that might be causing issues
             .replace(Regex("\\\\$"), "") // Remove trailing backslashes
-            .trimEnd() // Remove any trailing whitespace
 
         logger.debug("Processed content has {} characters", processed.length)
         return processed
