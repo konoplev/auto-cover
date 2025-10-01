@@ -2,6 +2,7 @@ package me.konoplev.autocover.cli
 
 import me.konoplev.autocover.services.ConfigurationHelper
 import me.konoplev.autocover.services.CoverageImprovementService
+import me.konoplev.autocover.services.FileSystemTransactionManager
 import me.konoplev.autocover.services.TestCoverageProvider
 import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Component
@@ -12,6 +13,7 @@ class AutoCoverCLI(
     private val configurationHelper: ConfigurationHelper,
     private val coverageImprovementService: CoverageImprovementService,
     private val testCoverageProvider: TestCoverageProvider,
+    private val transactionManager: FileSystemTransactionManager
 ) : CommandLineRunner {
 
     private val scanner = Scanner(System.`in`)
@@ -29,7 +31,11 @@ class AutoCoverCLI(
             } catch (e: NoSuchElementException) {
                 break
             }
-
+            
+            //if previous iteration is not rolled back, then commit
+            transactionManager.commitTransaction()
+            transactionManager.startTransaction()
+            
             when {
                 configurationHelper.isConfigurationInstructionNeeded() -> {
                     val configuration = configurationHelper.getTestCoverageConfiguration()
@@ -53,11 +59,17 @@ class AutoCoverCLI(
                 input.equals("help", ignoreCase = true) -> {
                     showHelp()
                 }
+                input.equals("improve", ignoreCase = true) -> {
+                    coverageImprovementService.improveCoverage()
+                }
                 input.equals("clear", ignoreCase = true) -> {
                     // Clear screen
                     print("\u001b[2J\u001b[H")
                     println("🤖 Auto-Cover CLI Application")
                     println("=============================")
+                }
+                input.equals("discard", ignoreCase = true) -> {
+                    transactionManager.rollbackTransaction()
                 }
                 else -> {
                     // do nothing
@@ -69,6 +81,8 @@ class AutoCoverCLI(
 
     private fun showHelp() {
         println("📖 Available Commands:")
+        println("  improve                        - Improve coverage")
+        println("  discard                        - Rollback recent changed")
         println("  help                           - Show this help message")
         println("  clear                          - Clear the screen")
         println("  quit / exit                    - Exit the application")
