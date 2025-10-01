@@ -1,30 +1,39 @@
 package me.konoplev.autocover.services
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
-import java.io.File
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import java.io.File
+
+private val projectDir = File("src/test/resources/test-projects/spring-sample-app-no-coverage-setup")
 
 class ConfigurationHelperIntegrationTest : BaseLlamaIntegrationTest() {
 
     @Autowired
     private lateinit var configurationHelper: ConfigurationHelper
 
-    @Test
-    fun `test getInstructions returns valid JSON configuration for Spring sample app`() {
-        // Given: Set the current directory to our test Spring application
-        val testAppPath = File("src/test/resources/test-projects/spring-sample-app-no-coverage-setup").absolutePath
+    @AfterEach
+    fun cleanUp() {
+        // Clean up target directory to ensure clean test state
+        val targetDir = File(projectDir, "target")
+        if (targetDir.exists()) {
+            targetDir.deleteRecursively()
+        }
+    }
 
+    @Test
+    fun `test getTestCoverageConfiguration returns valid configuration for Spring sample app`() {
+        // Given: Set the current directory to our test Spring application
         assertTrue(
             configurationHelper.isConfigurationInstructionNeeded(),
             "Configuration should be needed when test command and result location are null",
         )
 
         // When: Get configuration
-        val configuration = configurationHelper.getInstructions(testAppPath)
+        val configuration = configurationHelper.getTestCoverageConfiguration(projectDir.absolutePath)
 
         // Then: Verify the instructions are not empty
         assertNotNull(configuration, "Configuration should not be null")

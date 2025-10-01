@@ -2,7 +2,6 @@ package me.konoplev.autocover.services
 
 import dev.langchain4j.internal.RetryUtils
 import dev.langchain4j.service.SystemMessage
-import me.konoplev.autocover.config.AgentProperties
 import me.konoplev.autocover.config.ModelProperties
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -12,7 +11,6 @@ import java.io.File
 class CoverageImprovementService(
     private val testCoverageProvider: TestCoverageProvider,
     private val coverageImprovementAssistant: CoverageImprovementAssistant,
-    private val agentProperties: AgentProperties,
     private val modelProperties: ModelProperties,
 ) {
 
@@ -50,7 +48,12 @@ class CoverageImprovementService(
             logger.debug("Starting iteration {} of coverage improvement", iteration)
 
             // Use AI to generate additional tests with LangChain4j retry mechanism
-            val prompt = buildPrompt(currentDirectory + "/" + agentProperties.coverage.testResultLocation!!)
+            val reportLocation = testCoverageProvider.getReportLocation()
+            if (reportLocation == null) {
+                logger.warn("No report location configured, cannot build prompt")
+                return
+            }
+            val prompt = buildPrompt(currentDirectory + "/" + reportLocation)
             val aiResponse = callAiWithRetry(prompt)
 
             logger.debug("AI response for iteration {}: {}", iteration, aiResponse)

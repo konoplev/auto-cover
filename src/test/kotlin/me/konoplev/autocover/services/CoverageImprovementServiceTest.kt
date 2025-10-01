@@ -1,14 +1,16 @@
 package me.konoplev.autocover.services
 
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledIf
 import org.junit.jupiter.api.io.TempDir
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.TestPropertySource
 import java.io.File
 import java.nio.file.Path
-import kotlin.test.assertTrue
-import org.junit.jupiter.api.condition.EnabledIf
+
+private val projectDir = File("src/test/resources/test-projects/spring-sample-app-with-jacoco")
 
 @TestPropertySource(
     properties = [
@@ -48,7 +50,6 @@ class CoverageImprovementServiceTest : BaseOpenAiIntegrationTest() {
     @AfterEach
     fun tearDown() {
         // Clean up target directory to ensure clean test state
-        val projectDir = File("src/test/resources/test-projects/spring-sample-app-with-jacoco")
         val targetDir = File(projectDir, "target")
         if (targetDir.exists()) {
             targetDir.deleteRecursively()
@@ -58,7 +59,6 @@ class CoverageImprovementServiceTest : BaseOpenAiIntegrationTest() {
     @Test
     fun `should run coverage improvement process for spring-sample-app-with-jacoco project`() {
         // Given: Test project directory
-        val projectDir = File("src/test/resources/test-projects/spring-sample-app-with-jacoco")
         assertTrue(projectDir.exists(), "Test project directory should exist")
         // And: start transaction
         fileSystemTransactionManager.startTransaction()

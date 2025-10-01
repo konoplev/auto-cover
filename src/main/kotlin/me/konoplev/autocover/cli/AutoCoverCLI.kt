@@ -2,6 +2,7 @@ package me.konoplev.autocover.cli
 
 import me.konoplev.autocover.services.ConfigurationHelper
 import me.konoplev.autocover.services.CoverageImprovementService
+import me.konoplev.autocover.services.TestCoverageProvider
 import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Component
 import java.util.*
@@ -10,6 +11,7 @@ import java.util.*
 class AutoCoverCLI(
     private val configurationHelper: ConfigurationHelper,
     private val coverageImprovementService: CoverageImprovementService,
+    private val testCoverageProvider: TestCoverageProvider,
 ) : CommandLineRunner {
 
     private val scanner = Scanner(System.`in`)
@@ -30,7 +32,17 @@ class AutoCoverCLI(
 
             when {
                 configurationHelper.isConfigurationInstructionNeeded() -> {
-                    println(configurationHelper.getInstructions())
+                    val configuration = configurationHelper.getTestCoverageConfiguration()
+                    if (configuration != null) {
+                        // Set the configuration values on TestCoverageProvider
+                        testCoverageProvider.setTestCommand(configuration.testCommand)
+                        testCoverageProvider.setReportLocation(configuration.testResultLocation)
+                        println("Configuration set successfully:")
+                        println("Test Command: ${configuration.testCommand}")
+                        println("Report Location: ${configuration.testResultLocation}")
+                    } else {
+                        println("Failed to get configuration")
+                    }
                     break
                 }
                 input.isEmpty() -> continue

@@ -25,7 +25,7 @@ class ConfigurationHelper(
     fun isConfigurationInstructionNeeded(): Boolean =
         agentProperties.coverage.testCommand.isNullOrBlank() || agentProperties.coverage.testResultLocation.isNullOrBlank()
 
-    fun getInstructions(currentDirectory: String = java.io.File("").absolutePath): ProjectConfiguration? {
+    fun getTestCoverageConfiguration(currentDirectory: String = java.io.File("").absolutePath): ProjectConfiguration? {
         val response = projectConfigurationAssistant.chat(
             """
                 You are an expert software engineer tasked with detecting the testing framework and build system configuration for a project.

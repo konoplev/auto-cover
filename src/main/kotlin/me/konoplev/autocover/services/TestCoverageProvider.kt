@@ -1,8 +1,8 @@
 package me.konoplev.autocover.services
 
-import me.konoplev.autocover.config.AgentProperties
 import me.konoplev.autocover.services.report.parser.ReportParser
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.io.File
 
@@ -14,12 +14,37 @@ data class CommandResult(
 
 @Service
 class TestCoverageProvider(
-    private val agentProperties: AgentProperties,
     private val reportParsers: List<ReportParser>,
     private val commandExecutionService: CommandExecutionService,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestCoverageProvider::class.java)
+    
+    private var testCommand: String? = null
+    private var reportLocation: String? = null
+
+    /**
+     * Sets the test command to be executed for coverage analysis.
+     * Values are injected from application.yaml if configured.
+     */
+    @Value("\${agent.coverage.test-command:#{null}}")
+    fun setTestCommand(command: String?) {
+        this.testCommand = command
+    }
+
+    /**
+     * Sets the location where the coverage report will be generated.
+     * Values are injected from application.yaml if configured.
+     */
+    @Value("\${agent.coverage.test-result-location:#{null}}")
+    fun setReportLocation(location: String?) {
+        this.reportLocation = location
+    }
+
+    /**
+     * Gets the current report location.
+     */
+    fun getReportLocation(): String? = reportLocation
 
     /**
      * Runs the configured test command (if provided) in [currentDirectory],
@@ -27,12 +52,9 @@ class TestCoverageProvider(
      * the overall line coverage percentage (0.0..100.0). Returns null if unavailable.
      */
     fun getCoverage(currentDirectory: String = File("").absolutePath): Double? {
-        val testCommand = agentProperties.coverage.testCommand
-        val reportLocation = agentProperties.coverage.testResultLocation
-
         if (!testCommand.isNullOrBlank()) {
             logger.debug("Executing test command: {} in {}", testCommand, currentDirectory)
-            val result = commandExecutionService.executeCommand(testCommand, File(currentDirectory))
+            val result = commandExecutionService.executeCommand(testCommand!!, File(currentDirectory))
             if (result.exitCode != 0) {
                 logger.warn("Test command failed with exit code {}: {}", result.exitCode, result.errorOutput)
                 // Continue to attempt parsing existing report if present
@@ -46,7 +68,7 @@ class TestCoverageProvider(
             return null
         }
 
-        val reportFile = resolvePath(currentDirectory, reportLocation)
+        val reportFile = resolvePath(currentDirectory, reportLocation!!)
         if (!reportFile.exists()) {
             logger.warn("Report not found at: {}", reportFile.absolutePath)
             return null

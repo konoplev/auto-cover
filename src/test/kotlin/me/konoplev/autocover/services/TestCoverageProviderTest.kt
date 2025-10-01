@@ -32,7 +32,9 @@ class TestCoverageProviderTest {
         )
         val reportParsers = listOf(CoberturaParser(), JacocoParser())
         val commandExecutionService = CommandExecutionService()
-        testCoverageProvider = TestCoverageProvider(agentProperties, reportParsers, commandExecutionService)
+        testCoverageProvider = TestCoverageProvider(reportParsers, commandExecutionService)
+        testCoverageProvider.setTestCommand(agentProperties.coverage.testCommand)
+        testCoverageProvider.setReportLocation(agentProperties.coverage.testResultLocation)
     }
 
     @AfterEach
