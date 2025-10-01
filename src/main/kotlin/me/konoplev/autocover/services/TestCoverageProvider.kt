@@ -23,7 +23,7 @@ class TestCoverageProvider(
 
     /**
      * Runs the configured test command (if provided) in [currentDirectory],
-     * then parses the Cobertura XML at the configured result location and returns
+     * then parses the code coverage report at the configured result location and returns
      * the overall line coverage percentage (0.0..100.0). Returns null if unavailable.
      */
     fun getCoverage(currentDirectory: String = File("").absolutePath): Double? {

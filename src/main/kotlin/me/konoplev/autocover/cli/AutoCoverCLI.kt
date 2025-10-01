@@ -1,6 +1,7 @@
 package me.konoplev.autocover.cli
 
 import me.konoplev.autocover.services.ConfigurationHelper
+import me.konoplev.autocover.services.CoverageImprovementService
 import org.springframework.boot.CommandLineRunner
 import org.springframework.stereotype.Component
 import java.util.*
@@ -8,6 +9,7 @@ import java.util.*
 @Component
 class AutoCoverCLI(
     private val configurationHelper: ConfigurationHelper,
+    private val coverageImprovementService: CoverageImprovementService,
 ) : CommandLineRunner {
 
     private val scanner = Scanner(System.`in`)

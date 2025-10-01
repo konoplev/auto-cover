@@ -1,5 +1,6 @@
 package me.konoplev.autocover.services
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import java.io.File
@@ -12,40 +13,45 @@ class ConfigurationHelperIntegrationTest : BaseLlamaIntegrationTest() {
     @Autowired
     private lateinit var configurationHelper: ConfigurationHelper
 
-    @Autowired
-    private lateinit var projectConfigurationAssistant: ProjectConfigurationAssistant
-
     @Test
-    fun `test getInstructions returns non-empty result with configuration strings for Spring sample app`() {
+    fun `test getInstructions returns valid JSON configuration for Spring sample app`() {
         // Given: Set the current directory to our test Spring application
-        val testAppPath = File("src/test/resources/test-projects/spring-sample-app").absolutePath
+        val testAppPath = File("src/test/resources/test-projects/spring-sample-app-no-coverage-setup").absolutePath
 
         assertTrue(
             configurationHelper.isConfigurationInstructionNeeded(),
             "Configuration should be needed when test command and result location are null",
         )
 
-        // When: Get instructions from the configuration helper
-        val instructions = configurationHelper.getInstructions(testAppPath)
+        // When: Get configuration
+        val configuration = configurationHelper.getInstructions(testAppPath)
 
-        // Then: Verify the instructions are not empty and contain expected configuration strings
-        assertNotNull(instructions, "Instructions should not be null")
-        assertFalse(instructions.isBlank(), "Instructions should not be empty or blank")
+        // Then: Verify the instructions are not empty
+        assertNotNull(configuration, "Configuration should not be null")
 
-        logger.info("Received instructions (${instructions.length} characters): $instructions")
+        // Verify the configuration was parsed successfully
+        assertNotNull(configuration, "Configuration should be parsed successfully from JSON response")
+        
+        // Verify the configuration contains valid values
+        assertFalse(
+            configuration.testCommand.isBlank(),
+            "Test command should not be blank. Got: ${configuration.testCommand}"
+        )
+        
+        assertFalse(
+            configuration.testResultLocation.isBlank(),
+            "Test result location should not be blank. Got: ${configuration.testResultLocation}"
+        )
 
-        // Since TinyLlama might not follow instructions perfectly, let's be more lenient
-        // and check for various possible forms of the expected content
-        val hasMavenRelated = instructions.lowercase().let {
-            it.contains("maven") ||
-                it.contains("mvn") ||
-                it.contains("pom") ||
+        // Verify the configuration makes sense for a Maven project
+        val hasMavenRelated = configuration.testCommand.lowercase().let {
+                it.contains("mvn") &&
                 it.contains("test")
         }
 
         assertTrue(
             hasMavenRelated,
-            "Instructions should mention testing/Maven since the test app uses Maven. Got: $instructions",
+            "Test command should mention Maven since the test app uses Maven. Got: ${configuration.testCommand}",
         )
     }
 }

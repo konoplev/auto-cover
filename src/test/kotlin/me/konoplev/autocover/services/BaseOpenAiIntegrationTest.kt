@@ -2,10 +2,14 @@ package me.konoplev.autocover.services
 
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.condition.EnabledIf
 import org.slf4j.LoggerFactory
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.FilterType
+import org.springframework.core.env.Environment
+import org.springframework.test.context.DynamicPropertyRegistry
+import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.context.TestPropertySource
 
 @SpringBootTest
@@ -27,13 +31,4 @@ import org.springframework.test.context.TestPropertySource
     ],
 )
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-abstract class BaseOpenAiIntegrationTest {
-
-    protected val logger = LoggerFactory.getLogger(this::class.java)
-
-    @BeforeAll
-    fun setupModel() {
-        // OpenAI model setup - no container needed
-        logger.info("Using OpenAI gpt-4o-mini model for testing")
-    }
-}
+abstract class BaseOpenAiIntegrationTest

@@ -8,6 +8,7 @@ import org.springframework.test.context.TestPropertySource
 import java.io.File
 import java.nio.file.Path
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.condition.EnabledIf
 
 @TestPropertySource(
     properties = [
@@ -15,6 +16,7 @@ import kotlin.test.assertTrue
         "agent.coverage.test-result-location=target/site/jacoco/jacoco.xml",
     ],
 )
+@EnabledIf("apiKeyIsSet")
 class CoverageImprovementServiceTest : BaseOpenAiIntegrationTest() {
 
     @Autowired
@@ -30,6 +32,18 @@ class CoverageImprovementServiceTest : BaseOpenAiIntegrationTest() {
 
     @TempDir
     lateinit var tempDir: Path
+
+    companion object {
+        @JvmStatic
+        fun apiKeyIsSet(): Boolean {
+            // Check system properties first (highest priority)
+            val apiKey = System.getProperty("model.api.key")
+            // Then check environment variables (Spring maps both to model.api.key)
+                ?: System.getenv("MODEL_API_KEY")
+                ?: System.getenv("API_KEY")
+            return !apiKey.isNullOrBlank()
+        }
+    }
 
     @AfterEach
     fun tearDown() {
